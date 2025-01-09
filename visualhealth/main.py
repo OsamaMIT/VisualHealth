@@ -134,7 +134,7 @@ def main():
                     "sodium phosphate", "calcium disodium edta",
                     
                     # Nitrates and nitrites
-                    "sodium nitrate", "sodium nitrite", "potassium nitrate",
+                    "sodium nitrate", "sodium nitrite", "potassium nitrate", "nitrate", "nitrite",
                     
                     # Brominated compounds
                     "potassium bromate", "brominated vegetable oil", "bvo",
