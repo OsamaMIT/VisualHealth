@@ -10,11 +10,11 @@ st.set_page_config(page_title='VisualHealth', page_icon='👁️‍🗨️', lay
 
 @st.dialog('INTEGRITY WARNING')
 def warning():
-        st.write('''
-        THE TOOL IS STILL UNDER DEVELOPMENT! \n
-        IT MAY PRODUCE INACCURATE DATA! \n  
-        PLEASE DO NOT FULLY DEPEND ON THE TOOL AND ONLY USE IT AS A SUPPLEMENT!
-        ''')
+    st.write('''
+            THE TOOL IS STILL UNDER DEVELOPMENT! \n
+            IT MAY PRODUCE INACCURATE DATA! \n  
+            PLEASE DO NOT FULLY DEPEND ON THE TOOL AND ONLY USE IT AS A SUPPLEMENT!
+            ''')
 warning() 
 
 def initialize_symspell():
