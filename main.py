@@ -3,19 +3,24 @@ from PIL import Image
 import easyocr
 import numpy as np
 import multiprocessing
-from symspellpy import SymSpell, Verbosity
+from symspellpy import SymSpell
 import os
 
 st.set_page_config(page_title='VisualHealth', page_icon='👁️‍🗨️', layout="centered", menu_items=None)
 
+if 'INTEGRITY WARNING' not in st.session_state:
+    st.session_state['INTEGRITY WARNING'] = False
+
 @st.dialog('INTEGRITY WARNING')
 def warning():
     st.write('''
-            THE TOOL IS STILL UNDER DEVELOPMENT! \n
-            IT MAY PRODUCE INACCURATE DATA! \n  
+            THE TOOL IS IN ITS BETA RELEASE! \n
+            IT MAY PRODUCE INACCURATE RESULTS! \n  
             PLEASE DO NOT FULLY DEPEND ON THE TOOL AND ONLY USE IT AS A SUPPLEMENT!
             ''')
-warning() 
+if not st.session_state['INTEGRITY WARNING']:
+    warning()
+    st.session_state['INTEGRITY WARNING'] = True
 
 def initialize_symspell():
     max_edit_distance_dictionary = 2
@@ -49,6 +54,8 @@ def check_unhealthy(ingredients, unhealthy_list):
 def main():
     st.title("Ingredients Analyzer")
 
+    st.info("**Check for haram and unhealthy ingredients.**", icon="🔬")
+
     # Upload image
     uploaded_file = st.file_uploader("Upload an image of an ingredient label")
 
@@ -57,103 +64,99 @@ def main():
             # Load and display the uploaded image
             image = Image.open(uploaded_file)
             st.image(image, caption="Uploaded Image", use_container_width=True)
+            
+            with st.spinner("Reading image...", show_time=True):
+                # Convert the PIL image to a numpy array
+                image_np = np.array(image)
 
-            # Convert the PIL image to a numpy array
-            image_np = np.array(image)
+                # Create EasyOCR reader object
+                reader = easyocr.Reader(['en'])
 
-            # Create EasyOCR reader object
-            reader = easyocr.Reader(['en'])
-
-            # Perform OCR on the image
-            result = reader.readtext(image_np)
+                # Perform OCR on the image
+                result = reader.readtext(image_np)
 
             if result:
-                # Extract text from the OCR result
-                extracted_text = " ".join([text[1] for text in result])
+                with st.spinner("Analyzing ingredients...", show_time=True):
 
-                # Display the raw extracted text
-                st.subheader("Extracted Text:")
-                st.text(extracted_text)
+                
+                    # Extract text from the OCR result
+                    extracted_text = " ".join([text[1] for text in result])
 
-                # Correct the extracted text using SymSpell
-                sym_spell = initialize_symspell()
-                corrected_text = correct_text_with_symspell(sym_spell, extracted_text)
+                    # Correct the extracted text using SymSpell
+                    sym_spell = initialize_symspell()
+                    corrected_text = correct_text_with_symspell(sym_spell, extracted_text)
 
-                # Display the corrected text
-                st.subheader("Corrected Text:")
-                st.text(corrected_text)
+                    # Lists of haram and unhealthy ingredients
+                    haram_list = [
+                        # Animal-based ingredients
+                        "pork", "pig", "boar", "hog", "gelatin", "lard", "bacon", "ham", "sow", "swine",
+                        "enzymes from non-halal sources", "rennet from non-halal sources",
+                        "lipase", "pepsin", "carmine", "cochineal",
+                        "meat broth from non-halal sources", "animal fat from non-halal sources",
+                        
+                        # Alcohol and derivatives
+                        "alcohol", "ethanol", "beer", "wine", "rum", "brandy",
+                        "vodka", "gin", "whiskey", "bourbon", "liqueur", "ethanol-based flavoring",
+                        
+                        # Miscellaneous
+                        "non-halal", "non halal", "vanilla extract with alcohol", "natural flavors containing alcohol", 
+                        "wine vinegar", "balsamic vinegar with alcohol", "fermented fruit juice", 
+                        "glycerin from non-halal sources", "lecithin from non-halal sources",
+                        "mono and diglycerides from non-halal sources"
+                        
+                        # Pig derivatives
+                        "pig fat", "pig skin", "pig byproducts",
+                        "oleic acid from non-halal sources",
+                        
+                        # Blood and related products
+                        "blood", "blood plasma",
+                        
+                        # Miscellaneous derivatives
+                        "casein from non-halal sources", "hydrolyzed animal protein"
+                    ]
 
-                # Lists of haram and unhealthy ingredients
-                haram_list = [
-                    # Animal-based ingredients
-                    "pork", "pig", "boar", "hog", "gelatin", "lard", "bacon", "ham", "sow", "swine",
-                    "enzymes from non-halal sources", "rennet from non-halal sources",
-                    "lipase", "pepsin", "carmine", "cochineal",
-                    "meat broth from non-halal sources", "animal fat from non-halal sources",
-                    
-                    # Alcohol and derivatives
-                    "alcohol", "ethanol", "beer", "wine", "rum", "brandy",
-                    "vodka", "gin", "whiskey", "bourbon", "liqueur", "ethanol-based flavoring",
-                    
-                    # Miscellaneous
-                    "vanilla extract with alcohol", "natural flavors containing alcohol",
-                    "wine vinegar", "balsamic vinegar with alcohol", "fermented fruit juice",
-                    "glycerin from non-halal sources", "lecithin from non-halal sources",
-                    "mono and diglycerides from non-halal sources",
-                    
-                    # Pig derivatives
-                    "pig fat", "pig skin", "pig byproducts",
-                    "oleic acid from non-halal sources",
-                    
-                    # Blood and related products
-                    "blood", "blood plasma",
-                    
-                    # Miscellaneous derivatives
-                    "casein from non-halal sources", "hydrolyzed animal protein"
-                ]
-
-                unhealthy_list = [
-                    # Sweeteners and sugars
-                    "high fructose corn syrup", "corn syrup", "maltodextrin", "refined sugar",
-                    "artificial sweeteners", "aspartame", "sucralose", "saccharin",
-                    "acesulfame k", "cyclamate",
-                    
-                    # Fats and oils
-                    "trans fats", "partially hydrogenated oils", "fully hydrogenated oils",
-                    "palm oil", "interesterified fats", "vegetable shortening",
-                    
-                    # Preservatives
-                    "sodium benzoate", "potassium sorbate", "calcium propionate",
-                    "butylated hydroxyanisole", "bha", "butylated hydroxytoluene", "bht",
-                    "tert-butylhydroquinone", "tbhq", "propyl gallate",
-                    
-                    # Additives
-                    "monosodium glutamate", "msg", "yeast extract", "autolyzed yeast extract",
-                    "artificial flavoring", "artificial food coloring",
-                    "caramel coloring", "red 40", "yellow 5", "yellow 6", "blue 1",
-                    "sodium phosphate", "calcium disodium edta",
-                    
-                    # Nitrates and nitrites
-                    "sodium nitrate", "sodium nitrite", "potassium nitrate", "nitrate", "nitrite",
-                    
-                    # Brominated compounds
-                    "potassium bromate", "brominated vegetable oil", "bvo",
-                    
-                    # Emulsifiers and stabilizers
-                    "polysorbate 80", "carrageenan", "propylene glycol",
-                    "xanthan gum", "guar gum",
-                    
-                    # Other unhealthy compounds
-                    "sulfites", "sulfur dioxide", "benzoates",
-                    "phosphoric acid", "aluminum compounds", "hydrolyzed vegetable protein",
-                    "dextrose", "propylene glycol alginate", "silicon dioxide",
-                    "nitrates", "modified starch"
-                ]
+                    unhealthy_list = [
+                        # Sweeteners and sugars
+                        "high fructose corn syrup", "corn syrup", "maltodextrin", "refined sugar",
+                        "artificial sweeteners", "aspartame", "sucralose", "saccharin",
+                        "acesulfame k", "cyclamate",
+                        
+                        # Fats and oils
+                        "trans fats", "partially hydrogenated oils", "fully hydrogenated oils",
+                        "palm oil", "interesterified fats", "vegetable shortening",
+                        
+                        # Preservatives
+                        "sodium benzoate", "potassium sorbate", "calcium propionate",
+                        "butylated hydroxyanisole", "bha", "butylated hydroxytoluene", "bht",
+                        "tert-butylhydroquinone", "tbhq", "propyl gallate",
+                        
+                        # Additives
+                        "monosodium glutamate", "msg", "yeast extract", "autolyzed yeast extract",
+                        "artificial flavoring", "artificial food coloring",
+                        "caramel coloring", "red 40", "yellow 5", "yellow 6", "blue 1",
+                        "sodium phosphate", "calcium disodium edta",
+                        
+                        # Nitrates and nitrites
+                        "sodium nitrate", "sodium nitrite", "potassium nitrate", "nitrate", "nitrite",
+                        
+                        # Brominated compounds
+                        "potassium bromate", "brominated vegetable oil", "bvo",
+                        
+                        # Emulsifiers and stabilizers
+                        "polysorbate 80", "carrageenan", "propylene glycol",
+                        "xanthan gum", "guar gum",
+                        
+                        # Other unhealthy compounds
+                        "sulfites", "sulfur dioxide", "benzoates",
+                        "phosphoric acid", "aluminum compounds", "hydrolyzed vegetable protein",
+                        "dextrose", "propylene glycol alginate", "silicon dioxide",
+                        "nitrates", "modified starch"
+                    ]
 
 
-                # Analyze ingredients
-                haram_found = check_haram(corrected_text, haram_list)
-                unhealthy_found = check_unhealthy(corrected_text, unhealthy_list)
+                    # Analyze ingredients
+                    haram_found = check_haram(corrected_text, haram_list)
+                    unhealthy_found = check_unhealthy(corrected_text, unhealthy_list)
 
                 # Display results
                 st.subheader("Analysis Results:")
@@ -166,6 +169,7 @@ def main():
                     st.warning(f"Unhealthy Ingredients Detected: {', '.join(unhealthy_found)}")
                 else:
                     st.info("No unhealthy ingredients detected. The product appears to be healthy.")
+                    
             else:
                 st.warning("No text detected from the image. Please try again with a clearer image.")
 
